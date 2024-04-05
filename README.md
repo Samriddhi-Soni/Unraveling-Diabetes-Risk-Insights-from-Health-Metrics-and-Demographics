@@ -37,7 +37,7 @@ significantly influence diabetes prevalence, highlighting the complex and substa
 
 ### R Markdown (Data transformation/predictive modelling/Visualization/Classificatin)
 
-* [Code/RMarkdown](https://github.com/Samriddhi-Soni/Unraveling-Diabetes-Risk-Insights-from-Health-Metrics-and-Demographics/blob/3681164083cea8ff650ad1f447db165e17cdbc12/Project%201.Rmd)
+* [Code/RMarkdown](https://github.com/Samriddhi-Soni/Unraveling-Diabetes-Risk-Insights-from-Health-Metrics-and-Demographics/blob/43e2a862191450745430be7ddf2d991bcad9a5fe/Code.Rmd)
 
 ### Questions
 
