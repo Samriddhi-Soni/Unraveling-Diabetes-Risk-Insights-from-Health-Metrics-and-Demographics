@@ -1,0 +1,194 @@
+# Installing and loading relevant libraries
+library(dplyr)
+library(tidyverse)s
+library(ggplot2)
+library(gplots)
+library(car)
+library(corrplot)
+library(viridis)e
+library(jtools)
+library(apaTables)
+library(viridis)
+library(sf)
+
+# Load Data
+data<- read.csv(file="C:/Users/ss6557/Desktop/Semester 3/HUDM 5150-Statistics careers, communication and capstone/data/mergedtablefinal.csv", header = TRUE)
+
+# Extracting relevant variables
+data <- data[,c(-11:-22)]
+head(data)
+
+# Exploratory data analysis
+# Correlation Heatmap and correlation plot
+cor_mat <- cor(data[,-c(1,5)])
+cor_mat
+apa.cor.table(cor_mat, filename="Correlation matrix.doc", table.number=1)
+
+# Correlation plot
+corrplot(cor_mat,method="color",tl.col = "black", tl.cex = 0.6)
+
+Data transformation based on EDA
+# combining variables with high level of correlation
+data$ob_sed <- (data$obesity + data$sedentary) / 2
+data$am_dmeds <- (data$Ameds + data$Dmeds) / 2
+OLS multiple linear regression
+ols_model <- lm(data[, 2] ~ ., data = data[,c(-1,-2,-5,-6,-7,-8,-12,-13)])
+summary(ols_model)
+apa.reg.table(ols_model, filename="Regression.doc", table.number=2)
+
+# Extract coefficients
+coefs <- summary(ols_model)$coefficients
+
+# Get only significant predictors (ignoring the intercept)
+significant_vars <- rownames(coefs)[which(coefs[, 4] < 0.05 & rownames(coefs) != "(Intercept)")]
+significant_vars
+
+# Detecting outliers
+# Install and load the 'car' package
+library(car)
+library(latticeExtra)
+
+# Create a linear regression model
+model <- lm(mpg ~ wt + hp + qsec, data = mtcars)
+
+# Create an influence plot
+influencePlot(ols_model, main="Influence Plot", sub="Cook's distance")
+
+# Add a reference line for Cook's distance threshold (e.g., 4/n)
+abline(h = 4/(length(ols_model$residuals)), col="red", lty=2)
+
+# Get Cook's distance values
+cooksd <- cooks.distance(ols_model)
+
+# Set a threshold for Cook's distance (you can adjust this)
+threshold <- 4 / length(cooksd)
+
+# Identify influential observations
+influential_observations <- which(cooksd > threshold)
+
+# Print or use influential_observations as needed
+print(influential_observations)
+
+# Removing the four influential points
+# Extracting relevant variables
+x <- c(2  , 3 ,  4  , 6 ,  7  , 9 , 12  ,13 , 17  ,18 , 39  ,41  ,42  ,43 , 44  ,45 , 46 , 49,  63  ,84 , 88  ,98 ,185 ,352 ,354 ,363 ,368 ,369) 
+data_new <- data[-x,]
+head(data_new)
+
+# Fitting the new OLS regression model
+# OLS Multiple Linear regression Model
+
+new_model <- lm(data_new[, 2] ~ ., data = data_new[,c(-1,-2,-5,-6,-7,-8, -10,-12,-13)])
+summary(new_model)
+
+# Extract coefficients
+coefs <- summary(new_model)$coefficients
+
+# Get only significant predictors (ignoring the intercept)
+significant_vars <- rownames(coefs)[which(coefs[, 4] < 0.05 & rownames(coefs) != "(Intercept)")]
+significant_vars
+
+# Testing for multicollinearity
+# Test for multicollinearity
+# Checking the VIF
+vif_values <- vif(new_model)
+vif_values
+
+par(mar = c(10, 15, 2, 10))
+barplot(vif_values, main = "VIF Values", horiz = TRUE, col = "steelblue",cex.names = 0.8, las=2)
+abline(v = 10, lwd = 3, lty = 2)
+
+# Diagnostic plots for testing the theoretical assumptions
+crPlots(new_model)
+
+par(mfrow=c(2,2))
+plot(new_model)
+
+# Heatmap Clustering
+#Heat map clustering
+data_scale <- scale(data_new[,-1])
+Heatmap(data_scale, name="Diabetes heatmap",row_title = "Census Tract",column_title = "Covariates", column_km = 4)
+
+# Regression trees and Random forest
+library(randomForest)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(modelr)
+data <- data_new[,c(-1,-5,-6,-12,-13)]
+head(data)
+
+# Creating training and testing data set
+set.seed(123)  
+
+# Splitting the dataset into training and test.
+trainIndex <- sample(1:nrow(data), size = 0.7*nrow(data))
+
+trainData <- data[trainIndex, ]
+testData <- data[-trainIndex, ]
+
+# Regression tree
+#Since the Random Forest model does not observe individual dendograms, I additionally added a decision tree model for need.
+
+# Training a regression tree model on the training data.
+rt_model <- rpart(diabetes ~ ., data = trainData, method = "anova")
+
+# Making predictions on the test data using the decision tree model.
+prediction <- predict(rt_model, testData)
+
+# Calculating the MSE for the decision tree predictions.
+mse <- mean((testData$diabetes - prediction)^2)
+
+# Calculating the Root Mean Squared Error (RMSE) from the MSE.
+rmse <- sqrt(mse)
+
+# Printing the MSE and RMSE.
+print(paste("MSE:", mse))
+print(paste("RMSE:", rmse))
+# Plotting the decision tree using rpart.plot.
+rpart.plot(rt_model)
+
+# Calculating variable importance for the decision tree model.
+varImp(rt_model)
+
+# Random forest
+# Training a random forest regression model on the training data.
+rf_regression_model <- randomForest(diabetes ~ ., data=trainData, method="anova")
+print(rf_regression_model)
+
+# Making predictions on the test data.
+predictions <- predict(rf_regression_model, newdata=testData)
+
+# Calculating the Mean Squared Error (MSE) for the predictions.
+mse <- mean((testData$diabetes - predictions)^2)
+
+print(paste("MSE:", mse))
+
+# Variable importance for the random forest model
+# Calculating the importance of each feature in the random forest model.
+importance(rf_regression_model)
+
+# Plotting the importance of each feature.
+importance_data <- importance(rf_regression_model)
+importance_df <- data.frame(Variable=rownames(importance_data), Importance=importance_data[,1])
+importance_df <- importance_df[order(-importance_df$Importance), ]
+print(importance_df)
+
+# Creating a partial dependence plot for the 'binge_drinking' variable.
+pd <- partial(rf_regression_model, pred.var = "binge_drinking")
+plotPartial(pd)
+
+# Plotting the MSE of the random forest model as the number of trees increases.
+plot(rf_regression_model$mse, type="l")
+
+# Plotting a histogram of the predicted values.
+hist(predictions, col='blue', main='Distribution of Predictions')
+
+# Plotting scatter plots of predicted versus actual values
+plot(testData$diabetes, predictions, xlab = "Actual", ylab = "Predicted")
+abline(0, 1, col = "red")
+
+# Plotting scatter plots of residuals versus predicted values
+residuals <- testData$diabetes - predictions
+plot(predictions, residuals, xlab = "Predicted", ylab = "Residuals")
+abline(h = 0, col = "red")
